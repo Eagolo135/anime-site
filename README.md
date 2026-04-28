@@ -1,3 +1,22 @@
+# Local LLM Setup
+
+Create a local env file and add your OpenAI key:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then edit `.env.local`:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Notes:
+- `.env.local` is ignored by git via `.env*` in `.gitignore`.
+- This keeps your personal key private while still allowing local MCP tool execution.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

@@ -1,0 +1,180 @@
+import type { ChatTurn, Shir0ChatResponse } from "@/lib/mcp/contracts";
+
+const OPENAI_API_URL = "https://api.openai.com/v1/responses";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const RELIABLE_FALLBACK_MODEL = "gpt-4o-mini";
+
+function extractOutputText(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const typed = payload as {
+    output_text?: unknown;
+    output?: Array<{
+      content?: Array<{
+        text?: string;
+        type?: string;
+      }>;
+    }>;
+  };
+
+  if (typeof typed.output_text === "string" && typed.output_text.trim().length > 0) {
+    return typed.output_text;
+  }
+
+  const nestedText = typed.output
+    ?.flatMap((item) => item.content ?? [])
+    .find((content) => typeof content.text === "string" && content.text.trim().length > 0)?.text;
+
+  return nestedText ?? null;
+}
+
+function inferConversationStyle(history: ChatTurn[]): string {
+  const recentUserText = history
+    .filter((turn) => turn.role === "user")
+    .slice(-4)
+    .map((turn) => turn.content.toLowerCase())
+    .join(" ");
+
+  if (/(short|brief|one line|quick)/.test(recentUserText)) {
+    return "Keep replies concise and to the point.";
+  }
+
+  if (/(detail|deeper|explain|longer)/.test(recentUserText)) {
+    return "Offer slightly richer detail while staying easy to read.";
+  }
+
+  if (/(joke|funny|playful|banter)/.test(recentUserText)) {
+    return "Lean playful and witty when appropriate.";
+  }
+
+  return "Balance warmth with clear, natural dialogue.";
+}
+
+function fallbackShir0Response(message: string): Shir0ChatResponse {
+  const prompt = message.trim().toLowerCase();
+
+  if (/(hello|hi|hey|yo)\b/.test(prompt)) {
+    return {
+      reply: "Hey, I am here. Want to chat anime, get recommendations, or generate a poem with artwork?",
+      intent: "chat",
+      clarificationOptions: [],
+    };
+  }
+
+  if (/(how are you|how's your day|hows your day)/.test(prompt)) {
+    return {
+      reply: "I am doing well and ready to talk anime. Tell me a title and I can generate a fresh poem and matching artwork.",
+      intent: "chat",
+      clarificationOptions: [],
+    };
+  }
+
+  return {
+    reply: "I am here with you. If you share an anime title, I can generate a fresh poem and matching artwork right away.",
+    intent: "chat",
+    clarificationOptions: [],
+  };
+}
+
+export async function generateShir0Reply(
+  message: string,
+  history: ChatTurn[] = []
+): Promise<Shir0ChatResponse> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return fallbackShir0Response(message);
+  }
+
+  const styleHint = inferConversationStyle(history);
+  const systemPrompt = [
+    "You are Shir0, an anime-focused assistant with a conversational style similar to modern chat assistants.",
+    "Maintain natural back-and-forth flow and reference the current conversation context when useful.",
+    styleHint,
+    "Return strict JSON with keys reply, intent (chat|clarify|generate), and clarificationOptions (array).",
+    "Use intent=clarify only when anime or character is ambiguous, and keep clarificationOptions relevant.",
+  ].join(" ");
+
+  const callModel = async (model: string) => {
+    return fetch(OPENAI_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          ...history.map((turn) => ({ role: turn.role, content: turn.content })),
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "shir0_response",
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                reply: { type: "string" },
+                intent: { type: "string", enum: ["chat", "clarify", "generate"] },
+                clarificationOptions: {
+                  type: "array",
+                  maxItems: 3,
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      anime: { type: "string" },
+                      character: { type: "string" },
+                      confidence: { type: "number" },
+                    },
+                    required: ["anime", "character", "confidence"],
+                  },
+                },
+              },
+              required: ["reply", "intent", "clarificationOptions"],
+            },
+          },
+        },
+      }),
+    });
+  };
+
+  try {
+    let response = await callModel(DEFAULT_MODEL);
+
+    if (!response.ok && DEFAULT_MODEL !== RELIABLE_FALLBACK_MODEL) {
+      response = await callModel(RELIABLE_FALLBACK_MODEL);
+    }
+
+    if (!response.ok) {
+      return fallbackShir0Response(message);
+    }
+
+    const payload = (await response.json()) as unknown;
+    const outputText = extractOutputText(payload);
+
+    if (!outputText) {
+      return fallbackShir0Response(message);
+    }
+
+    const parsed = JSON.parse(outputText) as Shir0ChatResponse;
+    return {
+      reply: parsed.reply,
+      intent: parsed.intent,
+      clarificationOptions: (parsed.clarificationOptions ?? []).slice(0, 3),
+    };
+  } catch {
+    return fallbackShir0Response(message);
+  }
+}

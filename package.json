@@ -6,20 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:smoke": "playwright test tests/golden-path.spec.ts tests/mcp-flow.spec.ts tests/about-page.spec.ts tests/mcp-tools-api.spec.ts tests/shir0-conversation.spec.ts",
+    "qa:lighthouse": "lighthouse http://127.0.0.1:3000 --quiet --chrome-flags=\"--headless\" --output=json --output-path=docs/qa/lighthouse-report.json"
   },
   "dependencies": {
+    "framer-motion": "^12.38.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "lighthouse": "^13.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

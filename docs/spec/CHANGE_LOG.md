@@ -1,0 +1,92 @@
+# Spec Change Log
+
+## 2026-04-28
+- Initialized source-of-truth spec and governance structure.
+- Locked baseline decisions from planning:
+  - Retro anime cel art direction
+  - Single-scene morph transition
+  - Submit-triggered search
+  - Desktop-first with mobile-safe baseline
+  - Placeholder style will be defined explicitly in spec
+- Assumed for sprint start pending confirmation:
+  - Warm cel + halftone + paper grain placeholder treatment
+  - Subtle theatrical motion intensity ceiling
+- Implemented SPRINT-01 code baseline:
+  - Added intro scene with `Push Here` CTA and subtitle.
+  - Added animated intro -> search transition with Framer Motion.
+  - Added artistic search screen and mock query flow.
+  - Added mock archive dataset and search utility module.
+  - Added themed typography and global visual tokens.
+- Completed SPRINT-01 QA loop:
+  - Lint/build checks passed.
+  - Interaction and mobile-safe baseline verified in local browser checks.
+- Promoted SPRINT-02 (`Archive Display V1`) to current sprint.
+- User-priority scope change: integrate Jikan anime images before Archive Display sprint.
+- Re-queued `SPRINT-02` and created `SPRINT-01B` as current sprint for controlled integration work.
+- Updated spec non-goal language to allow limited Jikan image enrichment while keeping mock data canonical.
+- Implemented and completed `SPRINT-01B`:
+  - Added `/api/jikan-images` route handler.
+  - Added Jikan image enrichment and fallback rendering in search cards.
+  - Updated image host configuration for Jikan/MAL domains.
+- Resumed `SPRINT-02` as current sprint after integration completion.
+- Began SPRINT-02 implementation:
+  - Added archive display module with `Mosaic` and `Stacks` view variants.
+  - Refactored search results rendering to use reusable archive component.
+  - Added interaction polish via hover motion and featured-card composition.
+- Completed SPRINT-02:
+  - Finished responsive density and readability tuning for archive cards.
+  - Added ARIA pressed semantics for archive view controls.
+  - Verified desktop/mobile behavior via manual browser checks.
+- Promoted `SPRINT-03` (`Integration Preparation`) to current sprint.
+- Completed SPRINT-03:
+  - Added provider contracts for archive and image sources.
+  - Refactored search state to consume provider boundaries.
+  - Added adapter contract documentation.
+- Promoted `SPRINT-04` (`QA and Polish`) to current sprint.
+- Sprint 4 QA progress:
+  - Completed manual visual/responsive/interaction/code sanity checks.
+  - Added accessibility polish (`aria-pressed` and `aria-live`).
+  - Verified empty-state and archive view toggles under search flow.
+- Completed optional Sprint 4 QA tasks:
+  - Added Playwright golden-path smoke test and config.
+  - Executed smoke test successfully.
+  - Ran Lighthouse audit and saved JSON report.
+  - Logged QA summary in `docs/qa/SPRINT-04-QA-REPORT.md`.
+- Closed `SPRINT-04` and promoted `SPRINT-05` (performance optimization) to current based on Lighthouse findings.
+- Completed SPRINT-05 performance optimization:
+  - Deferred search bundle loading and reduced transition filter costs.
+  - Replaced heavy body font source to eliminate excessive font requests.
+  - Performance improved from 59 to 80 in Lighthouse.
+  - LCP improved from 28.2s to 5.4s; Speed Index improved from 8.7s to 0.9s.
+  - Detailed report saved to `docs/qa/SPRINT-05-PERFORMANCE-REPORT.md`.
+- Started SPRINT-06 MCP foundation track:
+  - Added `docs/spec/MCP_CONTRACTS.md`.
+  - Added typed MCP contracts and dispatcher skeleton.
+  - Added route endpoints: `/api/mcp/chat`, `/api/mcp/poem`, `/api/mcp/image`, `/api/mcp/dispatch`.
+  - Added LLM provider adapters with fallback behavior and shared Jikan image provider.
+- Completed SPRINT-06:
+  - Validated MCP route envelope behavior with runtime smoke checks.
+  - Finalized contract-first MCP foundation implementation.
+- Promoted `SPRINT-07` (`MCP Routes and Dispatch Behavior`) to current sprint.
+- Completed SPRINT-07:
+  - Added resolver-driven ambiguity handling with top-3 clarification options.
+  - Hardened route-level request validation and response consistency.
+  - Added local API key setup via `.env.local.example` and README guidance.
+- Promoted `SPRINT-08` (`Shir0 Homepage Integration`) to current sprint.
+- Completed SPRINT-08:
+  - Added Shir0 homepage panel with conversation input and MCP dispatch integration.
+  - Added top-3 clarification action buttons and inline response rendering.
+  - Added poem and image output blocks in the homepage experience.
+  - Validated with lint, build, and Playwright smoke checks.
+- Promoted `SPRINT-09` (`Poem and Image Orchestration`) to current sprint.
+- Completed SPRINT-09:
+  - Added graceful fallback rendering for missing poem/image outputs in Shir0 panel.
+  - Added Playwright MCP flow coverage for clarify and generation fallback paths.
+  - Validated with lint, build, and Playwright (`golden-path` + `mcp-flow`) checks.
+- Promoted `SPRINT-10` (`MCP QA and Safety Hardening`) to current sprint.
+- Completed SPRINT-10:
+  - Added MCP safety checks for unsafe-content and max-length message guardrails.
+  - Added structured dispatch logging for blocked/completed orchestration calls.
+  - Added/expanded MCP API safety and session carry-forward tests.
+  - Ran lint/build/smoke/Lighthouse sanity checks and logged QA report at `docs/qa/SPRINT-10-QA-SAFETY-REPORT.md`.
+- Promoted `SPRINT-11` (`Conversational Shir0 Streaming and Control`) to current sprint.
