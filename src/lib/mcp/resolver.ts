@@ -23,6 +23,11 @@ type CharacterAlias = {
   character: string;
 };
 
+type AnimeAlias = {
+  token: string;
+  anime: string;
+};
+
 const AMBIGUOUS_CHARACTER_MAP: Record<string, ClarificationOption[]> = {
   sakura: [
     { anime: "Naruto", character: "Sakura Haruno", confidence: 0.93 },
@@ -48,6 +53,17 @@ const CHARACTER_ALIASES: CharacterAlias[] = [
   { token: "tanjiro", anime: "Demon Slayer", character: "Tanjiro Kamado" },
   { token: "shinji", anime: "Neon Genesis Evangelion", character: "Shinji Ikari" },
   { token: "spike", anime: "Cowboy Bebop", character: "Spike Spiegel" },
+  { token: "gon", anime: "Hunter x Hunter", character: "Gon Freecss" },
+  { token: "kirito", anime: "Sword Art Online", character: "Kazuto Kirigaya" },
+  { token: "rimuru", anime: "That Time I Got Reincarnated as a Slime", character: "Rimuru Tempest" },
+];
+
+const ANIME_ALIASES: AnimeAlias[] = [
+  { token: "hunter x hunter", anime: "Hunter x Hunter" },
+  { token: "hxh", anime: "Hunter x Hunter" },
+  { token: "sword art online", anime: "Sword Art Online" },
+  { token: "that time i got reincarnated as a slime", anime: "That Time I Got Reincarnated as a Slime" },
+  { token: "tensura", anime: "That Time I Got Reincarnated as a Slime" },
 ];
 
 function normalize(input: string): string {
@@ -58,7 +74,12 @@ function findAnimeMention(message: string): string | null {
   const normalized = normalize(message);
 
   const matched = archiveMockData.find((entry) => normalized.includes(normalize(entry.animeTitle)));
-  return matched?.animeTitle ?? null;
+  if (matched?.animeTitle) {
+    return matched.animeTitle;
+  }
+
+  const aliasMatch = ANIME_ALIASES.find((alias) => normalized.includes(alias.token));
+  return aliasMatch?.anime ?? null;
 }
 
 function findCharacterMentions(message: string): Array<{ anime: string; character: string }> {
@@ -209,18 +230,20 @@ export function resolveContext(message: string, options: ResolveOptions = {}): R
   }
 
   if (animeMention) {
+    const clarificationOptions = archiveMockData
+      .filter((entry) => entry.animeTitle === animeMention)
+      .slice(0, 3)
+      .map((entry) => ({
+        anime: entry.animeTitle,
+        character: entry.character,
+        confidence: 0.85,
+      }));
+
     return {
       anime: animeMention,
       character: null,
-      isAmbiguous: true,
-      clarificationOptions: archiveMockData
-        .filter((entry) => entry.animeTitle === animeMention)
-        .slice(0, 3)
-        .map((entry) => ({
-          anime: entry.animeTitle,
-          character: entry.character,
-          confidence: 0.85,
-        })),
+      isAmbiguous: clarificationOptions.length > 0,
+      clarificationOptions,
     };
   }
 

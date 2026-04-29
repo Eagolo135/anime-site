@@ -86,7 +86,7 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
   const hasDetectedAnimeContext =
     context.anime !== null || context.character !== null || context.clarificationOptions.length > 0;
 
-  const requestedCreativeOutput = hasDetectedAnimeContext;
+  const requestedCreativeOutput = hasDetectedAnimeContext || shir0.intent === "generate";
 
   const assistantTurn: ChatTurn = {
     role: "assistant",
@@ -159,6 +159,37 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
     persistSession(request.sessionId, finalHistory, {
       resolvedContext:
         context.anime && context.character ? { anime: context.anime, character: context.character } : null,
+      pendingClarification: [],
+    });
+
+    return response;
+  }
+
+  if (context.anime && !context.character) {
+    const fallbackCharacter = pickCharacterForAnime(context.anime, context.clarificationOptions) ?? "main character";
+    const poemRequest: PoemRequest = {
+      anime: context.anime,
+      character: fallbackCharacter,
+      length: "medium",
+      tone: inferPoemTone(request.message, baseHistory),
+    };
+
+    const [poem, image] = await Promise.all([
+      generatePoem(poemRequest),
+      fetchAnimeImage(context.anime, fallbackCharacter),
+    ]);
+
+    const response: DispatchResponse = {
+      shir0,
+      poem,
+      image,
+    };
+
+    persistSession(request.sessionId, finalHistory, {
+      resolvedContext: {
+        anime: context.anime,
+        character: fallbackCharacter,
+      },
       pendingClarification: [],
     });
 
