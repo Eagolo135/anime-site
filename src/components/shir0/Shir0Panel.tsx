@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { FormEvent, KeyboardEvent, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { ChatTurn, ClarificationOption, DispatchResponse } from "@/lib/mcp/contracts";
 
 export type FullPageGenerationPayload = {
@@ -45,6 +45,7 @@ export function Shir0Panel({
   const sessionIdRef = useRef("");
   const [renderedReply, setRenderedReply] = useState("");
   const [isRendering, setIsRendering] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [state, setState] = useState<DispatchState>({
     loading: false,
     error: null,
@@ -109,6 +110,8 @@ export function Shir0Panel({
       return;
     }
 
+    setIsGenerating(true);
+
     const anime = payload.image?.anime ?? payload.shir0.clarificationOptions[0]?.anime;
     if (!anime) {
       return;
@@ -166,6 +169,8 @@ export function Shir0Panel({
         imageUrl: payload.image?.imageUrl ?? null,
         matchedTitle: payload.image?.matchedTitle ?? anime,
       });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -265,6 +270,7 @@ export function Shir0Panel({
     setHistory([]);
     setRenderedReply("");
     setIsRendering(false);
+    setIsGenerating(false);
     setState({
       loading: false,
       error: null,
@@ -297,22 +303,54 @@ export function Shir0Panel({
 
       <p className="mt-4 text-sm leading-relaxed text-cyan-50/85">{initialPrompt}</p>
 
-      <form className="mt-4 space-y-3" onSubmit={onSubmit}>
-        <textarea
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder="Ask Shir0 about an anime or character..."
-          className="min-h-24 w-full rounded-2xl border border-cyan-100/20 bg-zinc-950/55 p-4 text-sm text-cyan-50 outline-none transition focus:border-cyan-200/55 focus:ring-2 focus:ring-cyan-200/30"
-          aria-label="Shir0 conversation input"
-        />
-        <button
-          type="submit"
-          disabled={!canSend}
-          className="h-11 w-full rounded-2xl border border-cyan-100/35 bg-[linear-gradient(130deg,#8de0ff_0%,#5ebae2_52%,#8f79ff_100%)] px-5 text-sm font-semibold text-zinc-950 shadow-[0_10px_24px_rgba(3,12,22,0.45)] transition enabled:hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {state.loading ? "Shir0 is thinking..." : isRendering ? "Shir0 is typing..." : "Send to Shir0"}
-        </button>
+      <form className="mt-4" onSubmit={onSubmit}>
+        <div className="relative">
+          <textarea
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (canSend) {
+                  void onSubmit(event as unknown as FormEvent<HTMLFormElement>);
+                }
+              }
+            }}
+            placeholder="Ask Shir0 about an anime or character..."
+            className="min-h-24 w-full rounded-2xl border border-cyan-100/20 bg-zinc-950/55 p-4 pr-14 text-sm text-cyan-50 outline-none transition focus:border-cyan-200/55 focus:ring-2 focus:ring-cyan-200/30"
+            aria-label="Shir0 conversation input"
+          />
+          <button
+            type="submit"
+            disabled={!canSend}
+            aria-label="Send message"
+            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-100/35 bg-[linear-gradient(130deg,#8de0ff_0%,#5ebae2_52%,#8f79ff_100%)] text-zinc-950 shadow-[0_4px_14px_rgba(3,12,22,0.45)] transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {state.loading ? (
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <p className="mt-1.5 text-right text-[10px] text-cyan-100/40">Enter to send &middot; Shift+Enter for newline</p>
       </form>
+
+      {isGenerating && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-cyan-50/5 px-3 py-2">
+          <svg className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          <p className="text-xs text-cyan-100/70">Generating poem and artwork&hellip;</p>
+        </div>
+      )}
 
       {state.error && <p className="mt-3 text-sm text-rose-200">{state.error}</p>}
 

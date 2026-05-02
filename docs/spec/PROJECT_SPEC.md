@@ -46,6 +46,10 @@ Create an anime-inspired digital poetry archive that feels like an interactive w
 - Asset strategy:
   - `public/assets/content/` for replaceable anime/content images.
   - `public/assets/decorative/` for UI motifs/textures/atmospherics.
+- Deployment: Vercel (production and preview).
+  - Why Vercel: zero-config Next.js App Router support, automatic preview deployments per branch, built-in edge network, and environment variable management that maps cleanly to `.env.local` in development. Aligns with the project's Next.js-first stack decision.
+  - The site is live on Vercel. `OPENAI_API_KEY` and `OPENAI_MODEL` must be set in Vercel project environment variables to enable LLM poem and chat features in production.
+  - `vercel/vercel-plugin` is registered for agent tool context (targets Claude Desktop / Cursor / Codex).
 
 ## 6) UX Principles
 - First impression should be experiential and memorable.

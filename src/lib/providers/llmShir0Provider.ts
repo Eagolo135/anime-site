@@ -93,8 +93,10 @@ export async function generateShir0Reply(
     "You are Shir0, an anime-focused assistant with a conversational style similar to modern chat assistants.",
     "Maintain natural back-and-forth flow and reference the current conversation context when useful.",
     styleHint,
-    "Return strict JSON with keys reply, intent (chat|clarify|generate), and clarificationOptions (array).",
-    "Use intent=clarify only when anime or character is ambiguous, and keep clarificationOptions relevant.",
+    "Return strict JSON with keys reply, intent (chat|clarify|generate), clarificationOptions (array), extractedAnime (string or null), and extractedCharacter (string or null).",
+    "For extractedAnime: detect any anime title mentioned in the user message — including abbreviations (DBZ=Dragon Ball Z, MHA=My Hero Academia, HxH=Hunter x Hunter, SAO=Sword Art Online, AOT=Attack on Titan, FMA=Fullmetal Alchemist, JJK=Jujutsu Kaisen), partial names, or casual references. Return the full canonical title or null if none present.",
+    "For extractedCharacter: detect any anime character mentioned by name or nickname (Luffy=Monkey D. Luffy from One Piece, Naruto=Naruto Uzumaki, Goku=Son Goku, etc). Return the character full name or null if none present.",
+    "Use intent=generate whenever an anime or character is mentioned. Use intent=clarify only when a name is truly ambiguous across multiple anime.",
   ].join(" ");
 
   const callModel = async (model: string) => {
@@ -141,8 +143,10 @@ export async function generateShir0Reply(
                     required: ["anime", "character", "confidence"],
                   },
                 },
+                extractedAnime: { type: ["string", "null"] },
+                extractedCharacter: { type: ["string", "null"] },
               },
-              required: ["reply", "intent", "clarificationOptions"],
+              required: ["reply", "intent", "clarificationOptions", "extractedAnime", "extractedCharacter"],
             },
           },
         },
@@ -168,11 +172,18 @@ export async function generateShir0Reply(
       return fallbackShir0Response(message);
     }
 
-    const parsed = JSON.parse(outputText) as Shir0ChatResponse;
+    const parsed = JSON.parse(outputText) as Shir0ChatResponse & {
+      extractedAnime?: string | null;
+      extractedCharacter?: string | null;
+    };
     return {
       reply: parsed.reply,
       intent: parsed.intent,
       clarificationOptions: (parsed.clarificationOptions ?? []).slice(0, 3),
+      extractedContext: {
+        anime: parsed.extractedAnime ?? null,
+        character: parsed.extractedCharacter ?? null,
+      },
     };
   } catch {
     return fallbackShir0Response(message);

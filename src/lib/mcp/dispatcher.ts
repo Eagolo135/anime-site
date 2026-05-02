@@ -2,7 +2,6 @@ import type {
   DispatchRequest,
   DispatchResponse,
   PoemRequest,
-  Shir0ChatResponse,
 } from "@/lib/mcp/contracts";
 import { generateShir0Reply } from "@/lib/providers/llmShir0Provider";
 import { generatePoem } from "@/lib/providers/llmPoemProvider";
@@ -10,10 +9,6 @@ import { fetchAnimeImage } from "@/lib/providers/jikanImageProvider";
 import { resolveContext } from "@/lib/mcp/resolver";
 import { getSessionSnapshot, updateSession } from "@/lib/mcp/sessionStore";
 import type { ChatTurn } from "@/lib/mcp/contracts";
-
-function shouldGenerate(response: Shir0ChatResponse, anime: string | null, character: string | null) {
-  return response.intent === "generate" || anime !== null || character !== null;
-}
 
 function pickCharacterForAnime(
   anime: string | null,
@@ -83,10 +78,9 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
     allowCarryForward: true,
   });
 
-  const hasDetectedAnimeContext =
-    context.anime !== null || context.character !== null || context.clarificationOptions.length > 0;
-
-  const requestedCreativeOutput = hasDetectedAnimeContext || shir0.intent === "generate";
+  // Merge LLM-extracted context as fallback when static resolver misses
+  const resolvedAnime = context.anime ?? shir0.extractedContext?.anime ?? null;
+  const resolvedCharacter = context.character ?? shir0.extractedContext?.character ?? null;
 
   const assistantTurn: ChatTurn = {
     role: "assistant",
@@ -95,61 +89,8 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
 
   const finalHistory = [...historyWithUser, assistantTurn].slice(-20);
 
-  if (context.isAmbiguous && requestedCreativeOutput && context.anime) {
-    const resolvedCharacter = pickCharacterForAnime(context.anime, context.clarificationOptions);
-
-    if (resolvedCharacter) {
-      const poemRequest: PoemRequest = {
-        anime: context.anime,
-        character: resolvedCharacter,
-        length: "medium",
-        tone: inferPoemTone(request.message, baseHistory),
-      };
-
-      const [poem, image] = await Promise.all([
-        generatePoem(poemRequest),
-        fetchAnimeImage(context.anime, resolvedCharacter),
-      ]);
-
-      const response: DispatchResponse = {
-        shir0,
-        poem,
-        image,
-      };
-
-      persistSession(request.sessionId, finalHistory, {
-        resolvedContext: {
-          anime: context.anime,
-          character: resolvedCharacter,
-        },
-        pendingClarification: [],
-      });
-
-      return response;
-    }
-  }
-
-  if (context.isAmbiguous && requestedCreativeOutput) {
-    const clarificationOptions = context.clarificationOptions.slice(0, 3);
-    const response: DispatchResponse = {
-      shir0: {
-        reply:
-          "I found a few possible anime-character matches. Pick one and I will compose something for it.",
-        intent: "clarify",
-        clarificationOptions,
-      },
-      poem: null,
-      image: null,
-    };
-
-    persistSession(request.sessionId, finalHistory, {
-      pendingClarification: clarificationOptions,
-    });
-
-    return response;
-  }
-
-  if (!requestedCreativeOutput || !shouldGenerate(shir0, context.anime, context.character)) {
+  // No anime or character detected anywhere — chat only
+  if (!resolvedAnime && !resolvedCharacter) {
     const response: DispatchResponse = {
       shir0,
       poem: null,
@@ -157,75 +98,28 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
     };
 
     persistSession(request.sessionId, finalHistory, {
-      resolvedContext:
-        context.anime && context.character ? { anime: context.anime, character: context.character } : null,
       pendingClarification: [],
     });
 
     return response;
   }
 
-  if (context.anime && !context.character) {
-    const fallbackCharacter = pickCharacterForAnime(context.anime, context.clarificationOptions) ?? "main character";
-    const poemRequest: PoemRequest = {
-      anime: context.anime,
-      character: fallbackCharacter,
-      length: "medium",
-      tone: inferPoemTone(request.message, baseHistory),
-    };
-
-    const [poem, image] = await Promise.all([
-      generatePoem(poemRequest),
-      fetchAnimeImage(context.anime, fallbackCharacter),
-    ]);
-
-    const response: DispatchResponse = {
-      shir0,
-      poem,
-      image,
-    };
-
-    persistSession(request.sessionId, finalHistory, {
-      resolvedContext: {
-        anime: context.anime,
-        character: fallbackCharacter,
-      },
-      pendingClarification: [],
-    });
-
-    return response;
-  }
-
-  if (!context.anime || !context.character) {
-    const clarificationOptions = context.clarificationOptions.slice(0, 3);
-    const response: DispatchResponse = {
-      shir0: {
-        reply:
-          "I can craft a poem once we lock both anime and character. Which anime-character pair did you mean?",
-        intent: "clarify",
-        clarificationOptions,
-      },
-      poem: null,
-      image: null,
-    };
-
-    persistSession(request.sessionId, finalHistory, {
-      pendingClarification: clarificationOptions,
-    });
-
-    return response;
-  }
+  // Anime or character detected — always generate poem + image
+  const anime = resolvedAnime ?? (resolvedCharacter ? `${resolvedCharacter}'s anime` : "Unknown");
+  const character = resolvedCharacter
+    ?? pickCharacterForAnime(resolvedAnime, context.clarificationOptions)
+    ?? "main character";
 
   const poemRequest: PoemRequest = {
-    anime: context.anime,
-    character: context.character,
+    anime,
+    character,
     length: "medium",
     tone: inferPoemTone(request.message, baseHistory),
   };
 
   const [poem, image] = await Promise.all([
     generatePoem(poemRequest),
-    fetchAnimeImage(context.anime, context.character),
+    fetchAnimeImage(anime, character),
   ]);
 
   const response: DispatchResponse = {
@@ -235,10 +129,7 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
   };
 
   persistSession(request.sessionId, finalHistory, {
-    resolvedContext: {
-      anime: context.anime,
-      character: context.character,
-    },
+    resolvedContext: { anime, character },
     pendingClarification: [],
   });
 

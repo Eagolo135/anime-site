@@ -78,6 +78,16 @@ export default function AboutPage() {
           </li>
         </ul>
 
+        <h2 className="mt-8 font-display text-2xl text-amber-100">Deployment</h2>
+        <p className="mt-3 text-amber-50/85">
+          This site is deployed on Vercel. Vercel was chosen because it provides zero-config support for
+          Next.js App Router, automatic preview builds per branch, a global edge network, and clean
+          environment variable management that mirrors the local .env.local setup.
+          To enable LLM features in production, set <span className="font-semibold text-amber-100">OPENAI_API_KEY</span> and{" "}
+          <span className="font-semibold text-amber-100">OPENAI_MODEL</span> in the Vercel project settings.
+          Without those, Shir0 and poem generation fall back to built-in static responses.
+        </p>
+
         <h2 className="mt-8 font-display text-2xl text-amber-100">MCP Tools In This App</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-amber-50/85">
           <li>

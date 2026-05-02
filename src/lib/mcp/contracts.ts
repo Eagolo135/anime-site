@@ -26,6 +26,10 @@ export type Shir0ChatResponse = {
   reply: string;
   intent: Shir0Intent;
   clarificationOptions: ClarificationOption[];
+  extractedContext?: {
+    anime: string | null;
+    character: string | null;
+  };
 };
 
 export type PoemRequest = {
