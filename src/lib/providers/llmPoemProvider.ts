@@ -38,10 +38,10 @@ function fallbackPoem(request: PoemRequest): PoemResponse {
 }
 
 export async function generatePoem(request: PoemRequest): Promise<PoemResponse> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    console.warn("[poem.openai.missing_api_key] Set OPENAI_API_KEY or AI_GATEWAY_API_KEY");
+    console.warn("[poem.openai.missing_api_key] OPENAI_API_KEY is not set");
     return fallbackPoem(request);
   }
 

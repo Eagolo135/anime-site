@@ -77,10 +77,10 @@ export async function generateShir0Reply(
   message: string,
   history: ChatTurn[] = []
 ): Promise<Shir0ChatResponse> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    console.warn("[shir0.openai.missing_api_key] Set OPENAI_API_KEY or AI_GATEWAY_API_KEY");
+    console.warn("[shir0.openai.missing_api_key] OPENAI_API_KEY is not set");
     return fallbackShir0Response(message);
   }
 
