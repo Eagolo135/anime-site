@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import type { ChatTurn, ClarificationOption, DispatchResponse } from "@/lib/mcp/contracts";
+import type { ChatTurn, ClarificationOption, DispatchCarryState, DispatchResponse } from "@/lib/mcp/contracts";
 
 export type FullPageGenerationPayload = {
   anime: string;
@@ -26,6 +26,13 @@ function toHistory(turns: ChatTurn[]): ChatTurn[] {
   return turns.slice(-12);
 }
 
+function createEmptyCarryState(): DispatchCarryState {
+  return {
+    resolvedContext: null,
+    pendingClarification: [],
+  };
+}
+
 const SESSION_STORAGE_KEY = "shir0-session-id";
 
 function createSessionId(): string {
@@ -42,6 +49,7 @@ export function Shir0Panel({
 }: Shir0PanelProps) {
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<ChatTurn[]>([]);
+  const [carryState, setCarryState] = useState<DispatchCarryState>(createEmptyCarryState);
   const sessionIdRef = useRef("");
   const [renderedReply, setRenderedReply] = useState("");
   const [isRendering, setIsRendering] = useState(false);
@@ -197,6 +205,7 @@ export function Shir0Panel({
           message: content,
           history: toHistory(nextHistory),
           sessionId: activeSessionId || undefined,
+          carryState,
         }),
       });
 
@@ -211,6 +220,7 @@ export function Shir0Panel({
       };
 
       setHistory((previous) => [...previous, assistantTurn]);
+      setCarryState(payload.carryState ?? createEmptyCarryState());
       setState({
         loading: false,
         error: null,
@@ -268,6 +278,7 @@ export function Shir0Panel({
     sessionIdRef.current = "";
     setMessage("");
     setHistory([]);
+    setCarryState(createEmptyCarryState());
     setRenderedReply("");
     setIsRendering(false);
     setIsGenerating(false);

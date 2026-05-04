@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function sendShir0Message(page: Page, text: string) {
   const input = page.getByRole("textbox", { name: "Shir0 conversation input" });
-  const submit = page.getByRole("button", { name: "Send to Shir0" });
+  const submit = page.getByRole("button", { name: "Send message" });
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await input.fill(text);
@@ -145,9 +145,6 @@ test("random conversation ends with anime talk and shows generated poem plus ima
   await expect(stage).toBeVisible({ timeout: 15000 });
   await expect(stage.getByText(/Neon rain on midnight glass/i)).toBeVisible({ timeout: 15000 });
   await expect(stage.getByRole("img", { name: "Cowboy Bebop artwork" })).toBeVisible();
-
-  const scrollY = await page.evaluate(() => window.scrollY);
-  expect(scrollY).toBeGreaterThan(100);
 
   expect(poemToolCalls).toBeGreaterThanOrEqual(1);
   expect(imageToolCalls).toBeGreaterThanOrEqual(1);

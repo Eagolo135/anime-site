@@ -13,6 +13,16 @@ export type ClarificationOption = {
   confidence: number;
 };
 
+export type ResolvedContext = {
+  anime: string;
+  character: string;
+};
+
+export type DispatchCarryState = {
+  resolvedContext: ResolvedContext | null;
+  pendingClarification: ClarificationOption[];
+};
+
 export type Shir0ChatRequest = {
   message: string;
   history?: ChatTurn[];
@@ -65,10 +75,12 @@ export type DispatchRequest = {
   message: string;
   history?: ChatTurn[];
   sessionId?: string;
+  carryState?: Partial<DispatchCarryState>;
 };
 
 export type DispatchResponse = {
   shir0: Shir0ChatResponse;
   poem: PoemResponse | null;
   image: ImageResponse | null;
+  carryState: DispatchCarryState;
 };

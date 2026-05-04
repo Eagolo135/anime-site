@@ -85,6 +85,7 @@ export async function generateShir0Reply(
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
+    console.warn("[shir0.openai.missing_api_key]");
     return fallbackShir0Response(message);
   }
 
@@ -158,10 +159,18 @@ export async function generateShir0Reply(
     let response = await callModel(DEFAULT_MODEL);
 
     if (!response.ok && DEFAULT_MODEL !== RELIABLE_FALLBACK_MODEL) {
+      console.warn("[shir0.openai.model_failed]", {
+        model: DEFAULT_MODEL,
+        status: response.status,
+      });
       response = await callModel(RELIABLE_FALLBACK_MODEL);
     }
 
     if (!response.ok) {
+      console.warn("[shir0.openai.request_failed]", {
+        model: RELIABLE_FALLBACK_MODEL,
+        status: response.status,
+      });
       return fallbackShir0Response(message);
     }
 
@@ -169,6 +178,7 @@ export async function generateShir0Reply(
     const outputText = extractOutputText(payload);
 
     if (!outputText) {
+      console.warn("[shir0.openai.empty_output]");
       return fallbackShir0Response(message);
     }
 
@@ -185,7 +195,10 @@ export async function generateShir0Reply(
         character: parsed.extractedCharacter ?? null,
       },
     };
-  } catch {
+  } catch (error) {
+    console.warn("[shir0.openai.exception]", {
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
     return fallbackShir0Response(message);
   }
 }

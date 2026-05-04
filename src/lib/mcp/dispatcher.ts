@@ -1,4 +1,5 @@
 import type {
+  DispatchCarryState,
   DispatchRequest,
   DispatchResponse,
   PoemRequest,
@@ -7,7 +8,6 @@ import { generateShir0Reply } from "@/lib/providers/llmShir0Provider";
 import { generatePoem } from "@/lib/providers/llmPoemProvider";
 import { fetchAnimeImage } from "@/lib/providers/jikanImageProvider";
 import { resolveContext } from "@/lib/mcp/resolver";
-import { getSessionSnapshot, updateSession } from "@/lib/mcp/sessionStore";
 import type { ChatTurn } from "@/lib/mcp/contracts";
 
 function pickCharacterForAnime(
@@ -40,41 +40,26 @@ function inferPoemTone(message: string, history: ChatTurn[]): string {
   return "cinematic";
 }
 
-function persistSession(
-  sessionId: string | undefined,
-  history: ChatTurn[],
+function createCarryState(
   options: {
-    resolvedContext?: { anime: string; character: string } | null;
-    pendingClarification?: DispatchResponse["shir0"]["clarificationOptions"];
-  }
-) {
-  if (!sessionId) {
-    return;
-  }
-
-  updateSession(sessionId, (current) => ({
-    ...current,
-    history,
-    resolvedContext: options.resolvedContext ?? current.resolvedContext,
-    pendingClarification: options.pendingClarification ?? current.pendingClarification,
-  }));
+    resolvedContext?: DispatchCarryState["resolvedContext"];
+    pendingClarification?: DispatchCarryState["pendingClarification"];
+  } = {}
+): DispatchCarryState {
+  return {
+    resolvedContext: options.resolvedContext ?? null,
+    pendingClarification: options.pendingClarification ?? [],
+  };
 }
 
 export async function dispatchMcpRequest(request: DispatchRequest): Promise<DispatchResponse> {
-  const session = request.sessionId ? getSessionSnapshot(request.sessionId) : null;
-  const baseHistory = request.history && request.history.length > 0 ? request.history : session?.history ?? [];
-
-  const userTurn: ChatTurn = {
-    role: "user",
-    content: request.message,
-  };
-
-  const historyWithUser = [...baseHistory, userTurn].slice(-20);
+  const baseHistory = request.history ?? [];
+  const carryState = request.carryState ?? createCarryState();
 
   const shir0 = await generateShir0Reply(request.message, baseHistory);
   const context = resolveContext(request.message, {
-    pendingClarification: session?.pendingClarification ?? [],
-    resolvedContext: session?.resolvedContext ?? null,
+    pendingClarification: carryState.pendingClarification,
+    resolvedContext: carryState.resolvedContext,
     allowCarryForward: true,
   });
 
@@ -82,26 +67,29 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
   const resolvedAnime = context.anime ?? shir0.extractedContext?.anime ?? null;
   const resolvedCharacter = context.character ?? shir0.extractedContext?.character ?? null;
 
-  const assistantTurn: ChatTurn = {
-    role: "assistant",
-    content: shir0.reply,
-  };
-
-  const finalHistory = [...historyWithUser, assistantTurn].slice(-20);
+  if (context.isAmbiguous && context.clarificationOptions.length > 0 && !resolvedAnime && !resolvedCharacter) {
+    return {
+      shir0: {
+        ...shir0,
+        intent: "clarify",
+        clarificationOptions: context.clarificationOptions,
+      },
+      poem: null,
+      image: null,
+      carryState: createCarryState({
+        pendingClarification: context.clarificationOptions,
+      }),
+    };
+  }
 
   // No anime or character detected anywhere — chat only
   if (!resolvedAnime && !resolvedCharacter) {
-    const response: DispatchResponse = {
+    return {
       shir0,
       poem: null,
       image: null,
+      carryState: createCarryState(),
     };
-
-    persistSession(request.sessionId, finalHistory, {
-      pendingClarification: [],
-    });
-
-    return response;
   }
 
   // Anime or character detected — always generate poem + image
@@ -122,16 +110,13 @@ export async function dispatchMcpRequest(request: DispatchRequest): Promise<Disp
     fetchAnimeImage(anime, character),
   ]);
 
-  const response: DispatchResponse = {
+  return {
     shir0,
     poem,
     image,
+    carryState: createCarryState({
+      resolvedContext: { anime, character },
+      pendingClarification: [],
+    }),
   };
-
-  persistSession(request.sessionId, finalHistory, {
-    resolvedContext: { anime, character },
-    pendingClarification: [],
-  });
-
-  return response;
 }

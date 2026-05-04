@@ -7,7 +7,7 @@ test("about page explains usage and tools", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/about$/);
   await expect(page.getByRole("heading", { name: "About This Site" })).toBeVisible();
-  await expect(page.getByText("How To Use It")).toBeVisible();
+  await expect(page.getByText("How To Use The Site")).toBeVisible();
   await expect(page.getByText("MCP Tools In This App")).toBeVisible();
   await expect(page.getByText("Dispatch tool:")).toBeVisible();
 });

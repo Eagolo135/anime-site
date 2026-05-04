@@ -123,7 +123,8 @@ test("dispatch supports session context carry-forward", async ({ request }) => {
   });
 
   expect(firstResponse.status()).toBe(200);
-  await expect(firstResponse.json()).resolves.toMatchObject({
+  const firstPayload = await firstResponse.json();
+  expect(firstPayload).toMatchObject({
     shir0: {
       intent: expect.any(String),
     },
@@ -134,6 +135,7 @@ test("dispatch supports session context carry-forward", async ({ request }) => {
       sessionId,
       message: "Make it shorter and gentler",
       history: [],
+      carryState: firstPayload.carryState,
     },
   });
 

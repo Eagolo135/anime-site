@@ -46,6 +46,7 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
+    console.warn("[poem.openai.missing_api_key]");
     return fallbackPoem(request);
   }
 
@@ -105,10 +106,18 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
     let response = await callModel(DEFAULT_MODEL);
 
     if (!response.ok && DEFAULT_MODEL !== RELIABLE_FALLBACK_MODEL) {
+      console.warn("[poem.openai.model_failed]", {
+        model: DEFAULT_MODEL,
+        status: response.status,
+      });
       response = await callModel(RELIABLE_FALLBACK_MODEL);
     }
 
     if (!response.ok) {
+      console.warn("[poem.openai.request_failed]", {
+        model: RELIABLE_FALLBACK_MODEL,
+        status: response.status,
+      });
       return fallbackPoem(request);
     }
 
@@ -116,6 +125,7 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
     const outputText = extractOutputText(payload);
 
     if (!outputText) {
+      console.warn("[poem.openai.empty_output]");
       return fallbackPoem(request);
     }
 
@@ -128,7 +138,10 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
         provider: "llm",
       },
     };
-  } catch {
+  } catch (error) {
+    console.warn("[poem.openai.exception]", {
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
     return fallbackPoem(request);
   }
 }

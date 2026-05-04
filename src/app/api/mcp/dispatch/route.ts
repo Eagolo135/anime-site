@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dispatchMcpRequest } from "@/lib/mcp/dispatcher";
 import type { DispatchRequest } from "@/lib/mcp/contracts";
-import { getHistory, getSessionId, getTrimmedString } from "@/lib/mcp/validation";
+import { getDispatchCarryState, getHistory, getSessionId, getTrimmedString } from "@/lib/mcp/validation";
 import { blockedSafetyReply, evaluateMessageSafety } from "@/lib/mcp/safety";
 
 export async function POST(request: NextRequest) {
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   const message = getTrimmedString(payload.message);
   const history = getHistory(payload.history);
   const sessionId = getSessionId(payload.sessionId);
+  const carryState = getDispatchCarryState(payload.carryState);
 
   if (!message) {
     return NextResponse.json(
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
         },
         poem: null,
         image: null,
+        carryState,
       },
       { status: 200 }
     );
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
     message,
     history,
     sessionId: sessionId ?? undefined,
+    carryState,
   });
 
   console.info("[mcp.dispatch.completed]", {
