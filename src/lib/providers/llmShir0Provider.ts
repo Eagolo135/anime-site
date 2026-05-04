@@ -1,6 +1,6 @@
 import type { ChatTurn, Shir0ChatResponse } from "@/lib/mcp/contracts";
 
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const RELIABLE_FALLBACK_MODEL = "gpt-4o-mini";
 
@@ -10,24 +10,19 @@ function extractOutputText(payload: unknown): string | null {
   }
 
   const typed = payload as {
-    output_text?: unknown;
-    output?: Array<{
-      content?: Array<{
-        text?: string;
-        type?: string;
-      }>;
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
     }>;
   };
 
-  if (typeof typed.output_text === "string" && typed.output_text.trim().length > 0) {
-    return typed.output_text;
+  const content = typed.choices?.[0]?.message?.content;
+  if (typeof content === "string" && content.trim().length > 0) {
+    return content;
   }
 
-  const nestedText = typed.output
-    ?.flatMap((item) => item.content ?? [])
-    .find((content) => typeof content.text === "string" && content.text.trim().length > 0)?.text;
-
-  return nestedText ?? null;
+  return null;
 }
 
 function inferConversationStyle(history: ChatTurn[]): string {
@@ -109,7 +104,7 @@ export async function generateShir0Reply(
       },
       body: JSON.stringify({
         model,
-        input: [
+        messages: [
           {
             role: "system",
             content: systemPrompt,
@@ -120,37 +115,7 @@ export async function generateShir0Reply(
             content: message,
           },
         ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "shir0_response",
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                reply: { type: "string" },
-                intent: { type: "string", enum: ["chat", "clarify", "generate"] },
-                clarificationOptions: {
-                  type: "array",
-                  maxItems: 3,
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      anime: { type: "string" },
-                      character: { type: "string" },
-                      confidence: { type: "number" },
-                    },
-                    required: ["anime", "character", "confidence"],
-                  },
-                },
-                extractedAnime: { type: ["string", "null"] },
-                extractedCharacter: { type: ["string", "null"] },
-              },
-              required: ["reply", "intent", "clarificationOptions", "extractedAnime", "extractedCharacter"],
-            },
-          },
-        },
+        response_format: { type: "json_object" },
       }),
     });
   };

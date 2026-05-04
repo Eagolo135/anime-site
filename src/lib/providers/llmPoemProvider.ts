@@ -1,6 +1,6 @@
 import type { PoemRequest, PoemResponse } from "@/lib/mcp/contracts";
 
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const RELIABLE_FALLBACK_MODEL = "gpt-4o-mini";
 
@@ -10,24 +10,19 @@ function extractOutputText(payload: unknown): string | null {
   }
 
   const typed = payload as {
-    output_text?: unknown;
-    output?: Array<{
-      content?: Array<{
-        text?: string;
-        type?: string;
-      }>;
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
     }>;
   };
 
-  if (typeof typed.output_text === "string" && typed.output_text.trim().length > 0) {
-    return typed.output_text;
+  const content = typed.choices?.[0]?.message?.content;
+  if (typeof content === "string" && content.trim().length > 0) {
+    return content;
   }
 
-  const nestedText = typed.output
-    ?.flatMap((item) => item.content ?? [])
-    .find((content) => typeof content.text === "string" && content.text.trim().length > 0)?.text;
-
-  return nestedText ?? null;
+  return null;
 }
 
 function fallbackPoem(request: PoemRequest): PoemResponse {
@@ -63,7 +58,7 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
       },
       body: JSON.stringify({
         model,
-        input: [
+        messages: [
           {
             role: "system",
             content:
@@ -74,30 +69,7 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
             content: prompt,
           },
         ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "poem_response",
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                poem: { type: "string" },
-                meta: {
-                  type: "object",
-                  additionalProperties: false,
-                  properties: {
-                    tone: { type: "string" },
-                    length: { type: "string", enum: ["short", "medium", "long"] },
-                    provider: { type: "string", enum: ["llm", "fallback"] },
-                  },
-                  required: ["tone", "length", "provider"],
-                },
-              },
-              required: ["poem", "meta"],
-            },
-          },
-        },
+        response_format: { type: "json_object" },
       }),
     });
   };
