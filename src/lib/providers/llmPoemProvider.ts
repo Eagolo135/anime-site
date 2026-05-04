@@ -1,8 +1,8 @@
 import type { PoemRequest, PoemResponse } from "@/lib/mcp/contracts";
 
-const AI_GATEWAY_URL = "https://api.vercel.ai/v1/chat/completions";
-const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "openai/gpt-4o-mini";
-const RELIABLE_FALLBACK_MODEL = "openai/gpt-4o-mini";
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const RELIABLE_FALLBACK_MODEL = "gpt-4o-mini";
 
 function extractOutputText(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") {
@@ -38,10 +38,10 @@ function fallbackPoem(request: PoemRequest): PoemResponse {
 }
 
 export async function generatePoem(request: PoemRequest): Promise<PoemResponse> {
-  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    console.warn("[poem.ai_gateway.missing_api_key]");
+    console.warn("[poem.openai.missing_api_key]");
     return fallbackPoem(request);
   }
 
@@ -50,7 +50,7 @@ export async function generatePoem(request: PoemRequest): Promise<PoemResponse> 
   const prompt = `Write a ${length} ${tone} poem inspired by ${request.character} from ${request.anime}. Keep it original and avoid quoting copyrighted text.`;
 
   const callModel = async (model: string) => {
-    return fetch(AI_GATEWAY_URL, {
+    return fetch(OPENAI_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
