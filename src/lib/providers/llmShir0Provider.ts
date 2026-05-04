@@ -1,8 +1,8 @@
 import type { ChatTurn, Shir0ChatResponse } from "@/lib/mcp/contracts";
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
-const RELIABLE_FALLBACK_MODEL = "gpt-4o-mini";
+const AI_GATEWAY_URL = "https://api.vercel.ai/v1/chat/completions";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL ?? "openai/gpt-4o-mini";
+const RELIABLE_FALLBACK_MODEL = "openai/gpt-4o-mini";
 
 function extractOutputText(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") {
@@ -77,10 +77,10 @@ export async function generateShir0Reply(
   message: string,
   history: ChatTurn[] = []
 ): Promise<Shir0ChatResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.AI_GATEWAY_API_KEY;
 
   if (!apiKey) {
-    console.warn("[shir0.openai.missing_api_key]");
+    console.warn("[shir0.ai_gateway.missing_api_key]");
     return fallbackShir0Response(message);
   }
 
@@ -96,7 +96,7 @@ export async function generateShir0Reply(
   ].join(" ");
 
   const callModel = async (model: string) => {
-    return fetch(OPENAI_API_URL, {
+    return fetch(AI_GATEWAY_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
